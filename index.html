@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production Overflow Storage — Decision Model</title>
+<style>
+  :root{
+    --red:#FF4863; --ink:#1c1c1e; --graphite:#2B2B2B; --fog:#E5E5E5;
+    --line:#e2e2e6; --bg:#f6f6f8; --card:#ffffff; --muted:#6b6b73;
+    --green:#3f8f5e; --gold:#E0A122; --redsoft:#FDE7EA; --goldsoft:#FBF1D8; --greensoft:#E4F1EA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'DIN Next LT Pro','DIN Alternate','Segoe UI',Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 22px 60px;}
+  header.top{border-left:6px solid var(--red);padding:6px 0 6px 16px;margin-bottom:6px;}
+  h1{font-size:26px;margin:0 0 3px;font-weight:800;letter-spacing:-.2px;}
+  .sub{color:var(--muted);font-size:13px;margin:0;}
+  .asof{color:var(--muted);font-size:12px;margin-top:2px;}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.6px;color:var(--graphite);
+     margin:30px 0 12px;font-weight:800;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px 18px;}
+  .assump{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;}
+  .fld{display:flex;flex-direction:column;gap:4px;}
+  .fld label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;}
+  .fld input{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;width:130px;}
+  .fld input:focus{outline:2px solid var(--red);outline-offset:-1px;border-color:var(--red);}
+  .fld .pre{position:relative;}
+  /* summary strip */
+  .strip{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 4px;}
+  .kpi{flex:1;min-width:170px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px;}
+  .kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-top:2px;}
+  .kpi.red .v{color:var(--red);}
+  /* table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:#fff;}
+  table{border-collapse:collapse;width:100%;min-width:1120px;font-size:13px;}
+  thead th{position:sticky;top:0;background:#fbfbfc;text-align:left;padding:10px 10px;
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:800;
+    border-bottom:2px solid var(--line);white-space:nowrap;}
+  tbody td{padding:9px 10px;border-bottom:1px solid #eff0f2;vertical-align:middle;}
+  tbody tr:hover{background:#fcfcfd;}
+  tr.off{opacity:.4;}
+  .proj{font-weight:700;white-space:nowrap;}
+  .badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;padding:2px 7px;border-radius:20px;
+    background:var(--fog);color:var(--graphite);text-transform:uppercase;white-space:nowrap;}
+  .badge.combo{background:#e7ecfb;color:#2455D1;} .badge.new_store{background:#e4f1ea;color:var(--green);}
+  .badge.teg_standalone{background:#fde7ea;color:var(--red);} .badge.reskin{background:#f3eefc;color:#7A58CC;}
+  .badge.infill{background:#f3eefc;color:#7A58CC;} .badge.reno{background:#fbf1d8;color:#B07A16;}
+  .catsel{font:inherit;font-size:11px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;font-weight:800;}
+  select.catNSO{color:var(--red);} select.catInfill{color:#7A58CC;} select.catReno{color:#B07A16;}
+  .catsub{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 0;font-size:12.5px;font-weight:700;}
+  .catsub span{padding:3px 10px;border-radius:8px;background:#fff;border:1px solid var(--line);}
+  .games{display:flex;flex-wrap:wrap;gap:3px;max-width:270px;}
+  .chip{font-size:10.5px;padding:1px 6px;border-radius:5px;white-space:nowrap;font-weight:600;}
+  .chip.g{background:var(--greensoft);color:var(--green);}
+  .chip.a{background:var(--goldsoft);color:var(--gold);}
+  .chip.r{background:var(--redsoft);color:var(--red);}
+  .chip.none{background:#f0f0f2;color:#9a9aa2;}
+  .pctbar{width:64px;height:7px;border-radius:4px;background:#ececed;overflow:hidden;display:inline-block;vertical-align:middle;}
+  .pctbar > i{display:block;height:100%;background:var(--green);}
+  .pcttx{font-size:11px;color:var(--muted);margin-left:6px;}
+  td input[type=date]{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:7px;width:138px;}
+  td input[type=number]{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:7px;width:52px;text-align:center;}
+  td select{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:7px;background:#fff;}
+  td input:focus, td select:focus{outline:2px solid var(--red);outline-offset:-1px;border-color:var(--red);}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tot{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  tfoot td{padding:12px 10px;border-top:2px solid var(--line);font-weight:800;background:#fbfbfc;}
+  .ctrls{margin:10px 0 0;display:flex;gap:10px;flex-wrap:wrap;}
+  .btn{font:inherit;font-weight:700;font-size:12.5px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;cursor:pointer;}
+  .btn.primary{background:var(--red);color:#fff;border-color:var(--red);}
+  .btn:hover{filter:brightness(.97);}
+  /* comparison */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:820px){.cmp{grid-template-columns:1fr}}
+  .opt h3{margin:0 0 10px;font-size:14px;}
+  .optrow{display:flex;gap:12px;flex-wrap:wrap;}
+  .bars{margin-top:14px;}
+  .barline{display:flex;align-items:center;gap:10px;margin:9px 0;}
+  .barline .lbl{width:150px;font-size:12px;font-weight:700;flex:none;}
+  .barline .track{flex:1;background:#ececed;border-radius:6px;height:24px;position:relative;overflow:hidden;}
+  .barline .fill{height:100%;border-radius:6px;}
+  .barline .val{width:110px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;font-size:13px;}
+  .fill.se{background:var(--red);} .fill.a{background:#2455D1;} .fill.b{background:var(--green);}
+  .delta{font-size:12px;font-weight:700;margin-left:8px;}
+  .win{background:#e4f1ea;color:var(--green);padding:1px 7px;border-radius:12px;}
+  .lose{background:#fde7ea;color:var(--red);padding:1px 7px;border-radius:12px;}
+  .note{color:var(--muted);font-size:11.5px;margin-top:6px;}
+  footer.notes{margin-top:26px;color:var(--muted);font-size:12px;line-height:1.6;}
+  footer.notes b{color:var(--graphite);}
+  .hint{font-size:11px;color:var(--muted);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Production Overflow Storage — Decision Model</h1>
+    <p class="sub">What we currently pay to ship projects to site early (to free floor space) vs. leasing nearby overflow space. Edit ship dates, methods, and rates — everything recomputes live.</p>
+    <p class="asof">Pipeline & completion data: Hubert (CAPEX Pipeline + Store Summary), as of Aug 13, 2026. Cost placeholders per Install Coordinator. Lease rates are broker asks.</p>
+  </header>
+
+  <h2>Global Assumptions</h2>
+  <div class="card assump">
+    <div class="fld"><label>Site storage $ / month</label><input id="siteRate" type="number" value="4000" step="500"></div>
+    <div class="fld"><label>Early mobilization $ / shipment</label><input id="mobRate" type="number" value="4000" step="500"></div>
+    <div class="fld"><label>Local rent — base $/sq ft/yr</label><input id="baseRate" type="number" value="18" step="1"></div>
+    <div class="fld"><label>Local rent — NNN $/sq ft/yr</label><input id="nnnRate" type="number" value="3.5" step="0.5"></div>
+    <div class="fld"><label>"As of" date</label><input id="today" type="date" value="2026-08-13"></div>
+  </div>
+
+  <h2>Scenarios</h2>
+  <div class="card assump" style="align-items:center;">
+    <div class="fld"><label>Load scenario</label><select id="scenSelect" style="width:250px;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;"></select></div>
+    <div class="fld"><label>Name to save as</label><input id="scenName" type="text" placeholder="e.g. Jonny — aggressive" style="width:180px"></div>
+    <button class="btn primary" id="scenSave">Save</button>
+    <button class="btn" id="scenDefault">Set as my default</button>
+    <button class="btn" id="scenDelete">Delete</button>
+    <button class="btn" id="scenExport">Export file</button>
+    <label class="btn" for="scenImportInput" style="margin:0;cursor:pointer;">Import file<input id="scenImportInput" type="file" accept="application/json,.json" style="display:none"></label>
+    <button class="btn" id="scenReset">Reset</button>
+    <div style="flex:1;min-width:220px"><span class="hint" id="scenMsg"></span></div>
+  </div>
+
+  <div class="strip">
+    <div class="kpi red"><div class="v" id="kSE">$0</div><div class="l">Ship-early premium (selected projects)</div></div>
+    <div class="kpi"><div class="v" id="kProj">0</div><div class="l">Projects included</div></div>
+    <div class="kpi"><div class="v" id="kMonths">0</div><div class="l">Total site-storage months</div></div>
+    <div class="kpi"><div class="v" id="kMob">0</div><div class="l">Total mobilizations</div></div>
+  </div>
+  <div class="catsub" id="catSub"></div>
+
+  <h2>Projects — Ship-Early Cost</h2>
+  <div class="tablewrap">
+    <table id="tbl">
+      <thead><tr>
+        <th>Use</th><th>Project</th><th>Category</th><th>Type</th><th>Games &amp; % complete</th><th>Overall</th>
+        <th>Install date</th><th>Ship method</th><th>Ship date</th>
+        <th class="num">Storage<br>months</th><th class="num">Site storage $</th>
+        <th class="num">Early<br>mob.</th><th class="num">Mobilization $</th><th class="num">Project total</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+      <tfoot><tr>
+        <td></td><td>Totals</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td class="num" id="fMonths">0</td><td class="num" id="fSite">$0</td>
+        <td class="num" id="fTrips">0</td><td class="num" id="fMob">$0</td><td class="tot" id="fTot">$0</td>
+      </tr></tfoot>
+    </table>
+  </div>
+  <div class="ctrls">
+    <button class="btn" id="addRow">+ Add project</button>
+    <span class="hint">Ship date defaults to “now” for projects ≥85% built with a future install; otherwise to completion date. Renos &amp; infills have no CAPEX install date yet — enter one and their storage cost appears (until then they show “—” and count $0). Reclassify any row with the Category dropdown. Override any cell.</span>
+  </div>
+
+  <h2>Compare — Translate That Spend Into Local Space</h2>
+  <div class="card">
+    <p class="note" id="rateLine" style="font-size:13px;margin-top:0;"></p>
+    <div class="assump" style="margin-bottom:4px;">
+      <div class="fld"><label>Comparison window (months)</label><input id="horizon" type="number" value="9" step="1"></div>
+      <div class="fld"><label>Space to price (sq ft)</label><input id="targetSqft" type="number" value="11000" step="500"></div>
+      <div class="fld"><label>One-time setup $</label><input id="setup" type="number" value="15000" step="1000"></div>
+      <div class="fld" style="flex:1;min-width:220px"><label>&nbsp;</label><span class="hint">Location-agnostic: set the base rate + NNN up top to whatever's current (recent local asks ~$16–21/sf NNN). This turns the money already spent shipping early into the square footage it would rent.</span></div>
+    </div>
+    <div class="strip" style="margin-top:6px;">
+      <div class="kpi red"><div class="v" id="cBE">0 sq ft</div><div class="l">The ship-early spend rents this much locally (same window)</div></div>
+      <div class="kpi"><div class="v" id="cTgtCost">$0</div><div class="l">Cost of your target sq ft (window, incl. setup)</div></div>
+      <div class="kpi"><div class="v" id="cTgtMo">$0/mo</div><div class="l">Target space — all-in monthly</div></div>
+      <div class="kpi"><div class="v" id="cDelta">$0</div><div class="l" id="cDeltaL">vs ship-early premium</div></div>
+    </div>
+    <div class="bars" id="bars" style="margin-top:16px;"></div>
+    <p class="note" id="cSummary" style="font-size:12.5px;"></p>
+  </div>
+
+  <footer class="notes">
+    <p><b>How each number is built.</b> Storage months = whole months (rounded up) between ship date and install date. Site storage $ = storage months × site rate. Mobilization $ = one incremental "early" mobilization per shipment × the mob rate — a partial shipment is still one early trip, so ship method (Full / Partial) is informational, not a cost multiplier. Project total = site storage + mobilization.</p>
+    <p><b>What this doesn’t yet price</b> (all of which favor overflow): expedited/rush freight when a truck is scrambled last-minute, quality risk on partial loads, and rent that keeps running when an install slips (Topanga +77d, OKC +133d, Raleigh +56d, Village Point +53d in current CAPEX data). <b>Capacity:</b> current finished-goods load is ~30 games' worth / ~1,500+ SKUs today and climbing into the October peak — size the target footage to that, and remember a space with a dock is worth more per foot than one without.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = [{"s": "Phoenix CityScape", "c": "NSO", "t": "TEG_STANDALONE", "d": "2026-07-29", "i": "2026-08-12", "p": 99, "n": 7, "g": "Cosmic Crisis:98|Ruins:100|Timeliner:100"}, {"s": "Denver", "c": "NSO", "t": "COMBO", "d": "2026-09-01", "i": "2026-09-16", "p": 94, "n": 7, "g": "Legend of the Yeti:95|Prison Break:99|Ruins:98|Cosmic Crisis:98|Murder Mystery:85|Special Ops:84"}, {"s": "Roseville", "c": "Infill", "t": "INFILL", "d": "2026-09-04", "i": "2026-10-26", "p": 87, "n": 1, "g": "Ruins:87"}, {"s": "Addison Village", "c": "NSO", "t": "TEG_STANDALONE", "d": "2026-09-28", "i": "2026-10-14", "p": 95, "n": 6, "g": "Depths:99|Ruins:95|Timeliner:90|Cosmic Crisis:96"}, {"s": "Uniondale NY", "c": "NSO", "t": "COMBO", "d": "2026-09-30", "i": "2026-11-04", "p": 92, "n": 7, "g": "Cosmic Crisis:95|Ruins:93|The Heist:95|Timeliner:95|Depths:85"}, {"s": "Oakridge", "c": "NSO", "t": "NEW_STORE", "d": "2026-10-01", "i": "2026-10-14", "p": 36, "n": 6, "g": "The Heist:93|Ruins:86|Legend of the Yeti:27|Prison Break:19|Murder Mystery:17"}, {"s": "Topanga", "c": "NSO", "t": "TEG_STANDALONE", "d": "2026-10-05", "i": "2026-12-09", "p": 89, "n": 6, "g": "Murder Mystery:83|The Heist:90|Timeliner:89|Cosmic Crisis:89|Ruins:91"}, {"s": "Village Point", "c": "NSO", "t": "NEW_STORE", "d": "2026-10-13", "i": "2026-11-18", "p": 25, "n": 6, "g": "Legend of the Yeti:25"}, {"s": "Raleigh NC", "c": "NSO", "t": "NEW_STORE", "d": "2026-11-13", "i": "2026-12-02", "p": 57, "n": 6, "g": "Cosmic Crisis:77|Depths:53|Ruins:8|Timeliner:74|The Heist:7"}, {"s": "OKC", "c": "NSO", "t": "NEW_STORE", "d": "2026-12-18", "i": "2027-05-17", "p": null, "n": 6, "g": ""}, {"s": "Detroit", "c": "NSO", "t": "NEW_STORE", "d": "2026-12-21", "i": "2027-02-03", "p": 76, "n": 5, "g": ""}, {"s": "Yonkers Ridge Hill", "c": "NSO", "t": "NEW_STORE", "d": "2027-02-03", "i": "2027-02-15", "p": null, "n": 6, "g": ""}, {"s": "Skokie IL", "c": "NSO", "t": "NEW_STORE", "d": "2027-03-11", "i": "2027-04-05", "p": null, "n": 5, "g": ""}, {"s": "Cincy CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-08-04", "i": "", "p": 98, "n": 1, "g": "Legend of the Yeti:98"}, {"s": "Grapevine CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-08-17", "i": "", "p": 97, "n": 1, "g": "Legend of the Yeti:97"}, {"s": "Houston CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-08-18", "i": "", "p": 96, "n": 1, "g": "Legend of the Yeti:96"}, {"s": "Grandscape CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-09-29", "i": "", "p": 64, "n": 1, "g": "Cold Rush:64"}, {"s": "Austin CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-10-07", "i": "", "p": 45, "n": 1, "g": "Cold Rush:45"}, {"s": "Atlanta (The Battery) CR Infill", "c": "Infill", "t": "INFILL", "d": "2026-10-09", "i": "", "p": 18, "n": 1, "g": "Cold Rush:18"}, {"s": "Nashville: Opry Mills Reno", "c": "Reno", "t": "RENO", "d": "2026-08-06", "i": "", "p": null, "n": 0, "g": ""}, {"s": "Grapevine Reno", "c": "Reno", "t": "RENO", "d": "2026-09-11", "i": "", "p": 60, "n": 0, "g": ""}, {"s": "Chicago Reno", "c": "Reno", "t": "RENO", "d": "2026-09-25", "i": "", "p": 46, "n": 0, "g": ""}, {"s": "Nashville: Downtown Reno", "c": "Reno", "t": "RENO", "d": "2026-09-25", "i": "", "p": 40, "n": 0, "g": ""}, {"s": "Houston: CityCentre Reno", "c": "Reno", "t": "RENO", "d": "2026-09-28", "i": "", "p": 34, "n": 0, "g": ""}, {"s": "American Dream Reno", "c": "Reno", "t": "RENO", "d": "2026-10-01", "i": "", "p": null, "n": 0, "g": ""}, {"s": "Austin Reno", "c": "Reno", "t": "RENO", "d": "2026-10-01", "i": "", "p": null, "n": 0, "g": ""}, {"s": "Pigeon Forge Reno", "c": "Reno", "t": "RENO", "d": "2026-10-06", "i": "", "p": null, "n": 0, "g": ""}, {"s": "DC: Georgetown Reno", "c": "Reno", "t": "RENO", "d": "2026-10-15", "i": "", "p": null, "n": 0, "g": ""}];
+const $ = id => document.getElementById(id);
+const fmt = n => '$'+Math.round(n).toLocaleString('en-US');
+const dfmt = s => s || '';
+function parseD(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function ceilMonths(shipS, instS){
+  const a=parseD(shipS), b=parseD(instS);
+  if(!a||!b) return 0;
+  const days=(b-a)/86400000;
+  return days<=0 ? 0 : Math.ceil(days/30);
+}
+const today = ()=> $('today').value;
+
+// build initial state
+function defaultShip(p){
+  const t=today();
+  if(p.p!=null && p.p>=85 && p.i && p.i>t) return t;
+  return p.d || t;
+}
+function defaultMethod(p){ const s=defaultShip(p); return (p.d && s < p.d) ? 'Partial' : 'Full'; }
+let state = DATA.map(p=>({
+  s:p.s, c:p.c||'NSO', t:p.t||'', d:p.d, i:p.i, p:p.p, n:p.n, g:p.g||'',
+  method:defaultMethod(p), ship:defaultShip(p), mob:1, on:true, custom:false
+}));
+
+function chip(gs){
+  if(!gs) return '<span class="chip none">no game detail</span>';
+  return gs.split('|').map(x=>{
+    const idx=x.lastIndexOf(':'); const name=x.slice(0,idx); const pc=+x.slice(idx+1);
+    let c = isNaN(pc)?'none' : pc>=95?'g' : pc>=50?'a' : 'r';
+    return '<span class="chip '+c+'">'+name+' '+(isNaN(pc)?'?':pc+'%')+'</span>';
+  }).join('');
+}
+function pctCell(p){
+  if(p==null) return '<span class="pcttx">—</span>';
+  return '<span class="pctbar"><i style="width:'+Math.min(100,p)+'%"></i></span><span class="pcttx">'+p+'%</span>';
+}
+
+function render(){
+  const tb=$('tbody'); tb.innerHTML='';
+  state.forEach((r,i)=>{
+    const tr=document.createElement('tr'); tr.className=r.on?'':'off';
+    const typeCls=(r.t||'').toLowerCase();
+    tr.innerHTML=
+      '<td><input type="checkbox" data-k="on" data-i="'+i+'" '+(r.on?'checked':'')+'></td>'+
+      '<td class="proj">'+(r.custom?'<input type="text" data-k="s" data-i="'+i+'" value="'+r.s+'" style="width:120px">':r.s)+'</td>'+
+      '<td><select class="catsel cat'+r.c+'" data-k="c" data-i="'+i+'">'+['NSO','Infill','Reno'].map(o=>'<option '+(r.c===o?'selected':'')+'>'+o+'</option>').join('')+'</select></td>'+
+      '<td>'+(r.t?'<span class="badge '+typeCls+'">'+r.t.replace(/_/g,' ')+'</span>':'—')+'</td>'+
+      '<td><div class="games">'+chip(r.g)+'</div></td>'+
+      '<td>'+pctCell(r.p)+'</td>'+
+      '<td><input type="date" data-k="i" data-i="'+i+'" value="'+dfmt(r.i)+'"></td>'+
+      '<td><select data-k="method" data-i="'+i+'"><option '+(r.method==='Full'?'selected':'')+'>Full</option><option '+(r.method==='Partial'?'selected':'')+'>Partial</option></select></td>'+
+      '<td><input type="date" data-k="ship" data-i="'+i+'" value="'+dfmt(r.ship)+'"></td>'+
+      '<td class="num" id="dur-'+i+'">0</td>'+
+      '<td class="num" id="sc-'+i+'">$0</td>'+
+      '<td class="num"><input type="number" data-k="mob" data-i="'+i+'" value="'+r.mob+'" min="0" step="1"></td>'+
+      '<td class="num" id="mc-'+i+'">$0</td>'+
+      '<td class="tot" id="tt-'+i+'">$0</td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input,select').forEach(el=>{
+    const ev = (el.type==='checkbox'||el.tagName==='SELECT')?'change':'input';
+    el.addEventListener(ev, e=>{
+      const i=+el.dataset.i, k=el.dataset.k;
+      let v = el.type==='checkbox'?el.checked : (el.type==='number'?(+el.value):el.value);
+      state[i][k]=v;
+      if(k==='on'||k==='c'){ render(); }
+      else recompute();
+    });
+  });
+  recompute();
+}
+
+function recompute(){
+  const siteRate=+$('siteRate').value, mobRate=+$('mobRate').value;
+  let tMonths=0,tSite=0,tTrips=0,tMob=0,tTot=0,nProj=0; const catSub={NSO:0,Infill:0,Reno:0};
+  state.forEach((r,i)=>{
+    const hasInstall = !!(r.i && r.i.length);
+    const months = hasInstall ? ceilMonths(r.ship, r.i) : 0;
+    const site = months*siteRate;
+    const mob = hasInstall ? (+r.mob||0)*mobRate : 0;
+    const tot = site+mob;
+    const dur=$('dur-'+i), sc=$('sc-'+i), mc=$('mc-'+i), tt=$('tt-'+i);
+    if(dur){
+      dur.textContent = hasInstall ? months : '—';
+      sc.textContent = hasInstall ? fmt(site) : '—';
+      mc.textContent = hasInstall ? fmt(mob) : '—';
+      tt.textContent = hasInstall ? fmt(tot) : '—';
+    }
+    if(r.on){ tMonths+=months; tSite+=site; tTrips+=(hasInstall?(+r.mob||0):0); tMob+=mob; tTot+=tot; nProj++; if(catSub[r.c]!=null) catSub[r.c]+=tot; }
+  });
+  $('fMonths').textContent=tMonths; $('fSite').textContent=fmt(tSite);
+  $('fTrips').textContent=tTrips; $('fMob').textContent=fmt(tMob); $('fTot').textContent=fmt(tTot);
+  $('kSE').textContent=fmt(tTot); $('kProj').textContent=nProj; $('kMonths').textContent=tMonths; $('kMob').textContent=tTrips;
+  $('catSub').innerHTML='By category — <span style="color:var(--red)">NSO '+fmt(catSub.NSO)+'</span> <span style="color:#7A58CC">Infill '+fmt(catSub.Infill)+'</span> <span style="color:#B07A16">Reno '+fmt(catSub.Reno)+'</span>';
+  compare(tTot);
+}
+
+function compare(shipEarly){
+  const hz=+$('horizon').value||9;
+  const base=+$('baseRate').value, nnn=+$('nnnRate').value;
+  const allinYr=base+nnn, allinMo=allinYr/12;
+  const setup=+$('setup').value||0;
+  $('rateLine').innerHTML='All-in local rate: base $'+base+' + NNN $'+nnn+' = <b>$'+allinYr.toFixed(2)+' / sq ft / yr</b>  ·  $'+allinMo.toFixed(2)+' / sq ft / mo';
+  // break-even footage the premium would rent for the window (net of one-time setup)
+  const be = allinYr>0 ? Math.max(0,(shipEarly-setup)) / (allinYr*hz/12) : 0;
+  const target=+$('targetSqft').value||0;
+  const tgtRent=target*allinYr*hz/12;
+  const tgtCost=tgtRent+setup;
+  const tgtMo=target*allinMo;
+  $('cBE').textContent=Math.round(be).toLocaleString('en-US')+' sq ft';
+  $('cTgtCost').textContent=fmt(tgtCost);
+  $('cTgtMo').textContent=fmt(tgtMo)+'/mo';
+  const d=shipEarly-tgtCost;
+  $('cDelta').textContent=(d>=0?'saves ':'+')+fmt(Math.abs(d));
+  $('cDelta').style.color=d>=0?'var(--green)':'var(--red)';
+  $('cDeltaL').textContent=(d>=0?'cheaper than':'more than')+' ship-early';
+  const rows=[
+    {lbl:'Ship early (window)',cls:'se',val:shipEarly},
+    {lbl:'Lease '+(target/1000)+'k sq ft',cls:'b',val:tgtCost}
+  ];
+  const max=Math.max(...rows.map(r=>r.val),1);
+  $('bars').innerHTML=rows.map(r=>'<div class="barline"><div class="lbl">'+r.lbl+'</div><div class="track"><div class="fill '+r.cls+'" style="width:'+(r.val/max*100)+'%"></div></div><div class="val">'+fmt(r.val)+'</div></div>').join('');
+  $('cSummary').innerHTML='In plain terms: the <b>'+fmt(shipEarly)+'</b> spent shipping early over '+hz+' months would rent about <b>'+Math.round(be).toLocaleString('en-US')+' sq ft</b> of local overflow for the same period — with no mobilizations, no slip exposure, and the floor actually cleared.';
+}
+
+$('addRow').addEventListener('click',()=>{
+  state.push({s:'New project',c:'NSO',t:'',d:'',i:today(),p:null,n:null,g:'',method:'Full',ship:today(),mob:1,on:true,custom:true});
+  render();
+});
+['siteRate','mobRate','today'].forEach(id=>$(id).addEventListener('input',()=>{recompute();}));
+['baseRate','nnnRate','targetSqft','setup','horizon'].forEach(id=>$(id).addEventListener('input',()=>recompute()));
+
+/* ---------- Scenarios ---------- */
+const LS_SCEN='teg_overflow_scenarios_v1', LS_DEF='teg_overflow_default_v1';
+const GLOBAL_IDS=['siteRate','mobRate','baseRate','nnnRate','today','horizon','targetSqft','setup'];
+function lsAvail(){try{localStorage.setItem('__t','1');localStorage.removeItem('__t');return true;}catch(e){return false;}}
+const STORAGE_OK=lsAvail();
+function lsScenAll(){ if(!STORAGE_OK) return {}; try{return JSON.parse(localStorage.getItem(LS_SCEN)||'{}');}catch(e){return {};} }
+function lsScenSave(o){ if(!STORAGE_OK) return; try{localStorage.setItem(LS_SCEN,JSON.stringify(o));}catch(e){} }
+function baselineRows(){ return DATA.map(p=>({s:p.s,c:p.c||'NSO',t:p.t||'',d:p.d,i:p.i,p:p.p,n:p.n,g:p.g||'',method:defaultMethod(p),ship:defaultShip(p),mob:1,on:true,custom:false})); }
+const PRESETS={
+  'Baseline — ship at completion': ()=> DATA.map(p=>({s:p.s,c:p.c||'NSO',t:p.t||'',d:p.d,i:p.i,p:p.p,n:p.n,g:p.g||'',method:'Full',ship:(p.d||today()),mob:1,on:true,custom:false})),
+  'Early-ship reality — ship now': ()=> baselineRows()
+};
+function serialize(){ const g={}; GLOBAL_IDS.forEach(id=>g[id]=$(id).value); return {v:1, savedAt:$('today').value, globals:g, state:JSON.parse(JSON.stringify(state))}; }
+function applyScenario(o){ if(!o) return; if(o.globals) GLOBAL_IDS.forEach(id=>{ if(o.globals[id]!=null) $(id).value=o.globals[id]; }); if(o.state) state=o.state.map(r=>({...r})); render(); }
+function msg(t){ $('scenMsg').textContent=t; }
+function refreshScenSelect(sel){
+  const s=$('scenSelect'); const store=lsScenAll(); const saved=Object.keys(store).sort();
+  s.innerHTML='<option value="">— current view —</option>'+
+    '<optgroup label="Presets">'+Object.keys(PRESETS).map(n=>'<option value="preset:'+n+'">'+n+'</option>').join('')+'</optgroup>'+
+    (saved.length?'<optgroup label="Saved">'+saved.map(n=>'<option value="saved:'+n+'">'+n+'</option>').join('')+'</optgroup>':'');
+  if(sel) s.value=sel;
+}
+$('scenSelect').addEventListener('change',e=>{
+  const v=e.target.value; if(!v){return;}
+  if(v.startsWith('preset:')){ state=PRESETS[v.slice(7)](); render(); msg('Loaded preset.'); }
+  else if(v.startsWith('saved:')){ const o=lsScenAll()[v.slice(6)]; applyScenario(o); msg('Loaded “'+v.slice(6)+'”.'); }
+});
+$('scenSave').addEventListener('click',()=>{
+  const name=($('scenName').value||'').trim(); if(!name){ msg('Enter a name first.'); return; }
+  if(!STORAGE_OK){ msg('In-browser saving is blocked in this preview — use Export file to keep this scenario.'); return; }
+  const store=lsScenAll(); store[name]=serialize(); lsScenSave(store); refreshScenSelect('saved:'+name); msg('Saved “'+name+'” to this browser.');
+});
+$('scenDelete').addEventListener('click',()=>{
+  const v=$('scenSelect').value; if(!v.startsWith('saved:')){ msg('Pick a saved scenario to delete.'); return; }
+  const name=v.slice(6); const store=lsScenAll(); delete store[name]; lsScenSave(store); refreshScenSelect(''); msg('Deleted “'+name+'”.');
+});
+$('scenDefault').addEventListener('click',()=>{
+  if(!STORAGE_OK){ msg('Can’t set a default in this preview — open the hosted version.'); return; }
+  try{ localStorage.setItem(LS_DEF, JSON.stringify(serialize())); msg('This view is now your default when you open the page.'); }catch(e){ msg('Could not save default.'); }
+});
+$('scenReset').addEventListener('click',()=>{ state=baselineRows(); render(); refreshScenSelect(''); msg('Reset to the live pipeline defaults.'); });
+$('scenExport').addEventListener('click',()=>{
+  const name=($('scenName').value||'scenario').trim().replace(/[^\w.-]+/g,'_');
+  const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download='overflow-'+name+'.json'; a.click(); URL.revokeObjectURL(u);
+  msg('Exported a scenario file — share it, or commit it as the new default.');
+});
+$('scenImportInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ applyScenario(JSON.parse(rd.result)); refreshScenSelect(''); msg('Imported “'+f.name+'”.'); }catch(err){ msg('That file could not be read as a scenario.'); } };
+  rd.readAsText(f); e.target.value='';
+});
+
+// init order: personal default (this browser) > shared repo default (default-scenario.json) > computed baseline
+async function init(){
+  refreshScenSelect('');
+  if(STORAGE_OK){ const d=localStorage.getItem(LS_DEF); if(d){ try{ applyScenario(JSON.parse(d)); msg('Loaded your saved default (this browser).'); return; }catch(e){} } }
+  if(location.protocol.startsWith('http')){ try{ const r=await fetch('default-scenario.json',{cache:'no-store'}); if(r.ok){ applyScenario(await r.json()); msg('Loaded the shared team default.'); return; } }catch(e){} }
+  render();
+  if(!STORAGE_OK) msg('Preview mode: in-browser saving is off, but Export / Import files work. Host the page (e.g. GitHub Pages) for full Save / Default support.');
+}
+init();
+</script>
+</body>
+</html>
