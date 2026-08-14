@@ -108,8 +108,6 @@
   <div class="card assump">
     <div class="fld"><label>Site storage $ / month</label><input id="siteRate" type="number" value="4000" step="500"></div>
     <div class="fld"><label>Early mobilization $ / shipment</label><input id="mobRate" type="number" value="4000" step="500"></div>
-    <div class="fld"><label>Local rent — base $/sq ft/yr</label><input id="baseRate" type="number" value="18" step="1"></div>
-    <div class="fld"><label>Local rent — NNN $/sq ft/yr</label><input id="nnnRate" type="number" value="3.5" step="0.5"></div>
     <div class="fld"><label>"As of" date</label><input id="today" type="date" value="2026-08-13"></div>
   </div>
 
@@ -118,8 +116,6 @@
     <div class="fld"><label>Load scenario</label><select id="scenSelect" style="width:250px;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;"></select></div>
     <div class="fld"><label>Name to save as</label><input id="scenName" type="text" placeholder="e.g. Jonny — aggressive" style="width:180px"></div>
     <button class="btn primary" id="scenSave">Save</button>
-    <button class="btn" id="scenDefault">Set as my default</button>
-    <button class="btn" id="scenClearDef">Clear my default</button>
     <button class="btn" id="scenDelete">Delete</button>
     <button class="btn" id="scenReset">Reset</button>
     <div style="flex-basis:100%;height:0"></div>
@@ -165,10 +161,12 @@
   <div class="card">
     <p class="note" id="rateLine" style="font-size:13px;margin-top:0;"></p>
     <div class="assump" style="margin-bottom:4px;">
+      <div class="fld"><label>Local rent — base $/sq ft/yr</label><input id="baseRate" type="number" value="18" step="1"></div>
+      <div class="fld"><label>Local rent — NNN $/sq ft/yr</label><input id="nnnRate" type="number" value="3.5" step="0.5"></div>
       <div class="fld"><label>Comparison window (months)</label><input id="horizon" type="number" value="9" step="1"></div>
       <div class="fld"><label>Space to price (sq ft)</label><input id="targetSqft" type="number" value="11000" step="500"></div>
       <div class="fld"><label>One-time setup $</label><input id="setup" type="number" value="15000" step="1000"></div>
-      <div class="fld" style="flex:1;min-width:220px"><label>&nbsp;</label><span class="hint">Location-agnostic: set the base rate + NNN up top to whatever's current (recent local asks ~$16–21/sf NNN). This turns the money already spent shipping early into the square footage it would rent.</span></div>
+      <div class="fld" style="flex:1;min-width:220px"><label>&nbsp;</label><span class="hint">Location-agnostic: set the base rate + NNN to whatever's current (recent local asks ~$16–21/sf NNN). This turns the money already spent shipping early into the square footage it would rent.</span></div>
     </div>
     <div class="strip" style="margin-top:6px;">
       <div class="kpi red"><div class="v" id="cBE">0 sq ft</div><div class="l">The ship-early spend rents this much locally (same window)</div></div>
@@ -355,10 +353,6 @@ $('scenDelete').addEventListener('click',()=>{
   const v=$('scenSelect').value; if(!v.startsWith('saved:')){ msg('Pick a saved scenario to delete.'); return; }
   const name=v.slice(6); const store=lsScenAll(); delete store[name]; lsScenSave(store); refreshScenSelect(''); msg('Deleted “'+name+'”.');
 });
-$('scenDefault').addEventListener('click',()=>{
-  if(!STORAGE_OK){ msg('Can’t set a default in this preview — open the hosted version.'); return; }
-  try{ localStorage.setItem(LS_DEF, JSON.stringify(serialize())); msg('This view is now your default when you open the page.'); }catch(e){ msg('Could not save default.'); }
-});
 $('scenReset').addEventListener('click',()=>{ state=baselineRows(); render(); refreshScenSelect(''); msg('Reset to the live pipeline defaults.'); });
 $('scenExport').addEventListener('click',()=>{
   const name=($('scenName').value||'scenario').trim().replace(/[^\w.-]+/g,'_');
@@ -378,7 +372,6 @@ const LS_TOK='teg_overflow_ghtoken_v1';
 function ghTok(){ try{return localStorage.getItem(LS_TOK)||'';}catch(e){return '';} }
 function b64utf8(str){ const bytes=new TextEncoder().encode(str); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
 $('ghSaveTok').addEventListener('click',()=>{ const v=($('ghToken').value||'').trim(); if(!v){ msg('Paste a token first.'); return; } try{ localStorage.setItem(LS_TOK,v); $('ghToken').value=''; msg('Token saved to this browser — you can Publish now.'); }catch(e){ msg('Could not store token in this view.'); } });
-$('scenClearDef').addEventListener('click',()=>{ try{ localStorage.removeItem(LS_DEF); msg('Cleared your personal default — reload to get the team default.'); }catch(e){} });
 async function ghPublish(){
   const tok=ghTok(); if(!tok){ msg('Add a GitHub token first (paste it, then Save token).'); return; }
   const api='https://api.github.com/repos/'+REPO+'/contents/default-scenario.json';
@@ -389,7 +382,7 @@ async function ghPublish(){
   const body={message:'Update team default view', content:b64utf8(JSON.stringify(serialize(),null,2))}; if(sha) body.sha=sha;
   try{
     const r=await fetch(api,{method:'PUT',headers:H,body:JSON.stringify(body)});
-    if(r.ok){ msg('Published ✓ — everyone opens to this view within ~1 min. (Your own “Set as my default” still overrides it locally; use “Clear my default” to see the team view.)'); }
+    if(r.ok){ msg('Published ✓ — everyone (including you on reload) opens to this exact view within ~1 min.'); }
     else { let e={}; try{e=await r.json();}catch(_){} msg('Publish failed ('+r.status+'). '+(e.message||'Token needs Contents: Read/Write on '+REPO+'.')); }
   }catch(e){ msg('Publish failed: '+e.message); }
 }
@@ -398,8 +391,7 @@ $('scenPublish').addEventListener('click', ghPublish);
 // init order: personal default (this browser) > shared repo default (default-scenario.json) > computed baseline
 async function init(){
   refreshScenSelect('');
-  if(STORAGE_OK){ const d=localStorage.getItem(LS_DEF); if(d){ try{ applyScenario(JSON.parse(d)); msg('Loaded your saved default (this browser).'); return; }catch(e){} } }
-  if(location.protocol.startsWith('http')){ try{ const r=await fetch('default-scenario.json',{cache:'no-store'}); if(r.ok){ applyScenario(await r.json()); msg('Loaded the shared team default.'); return; } }catch(e){} }
+  if(location.protocol.startsWith('http')){ try{ const r=await fetch('default-scenario.json',{cache:'no-store'}); if(r.ok){ applyScenario(await r.json()); msg('Loaded the shared team view.'); return; } }catch(e){} }
   render();
   if(!STORAGE_OK) msg('Preview mode: in-browser saving is off, but Export / Import files work. Host the page (e.g. GitHub Pages) for full Save / Default support.');
 }
