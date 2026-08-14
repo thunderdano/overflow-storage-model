@@ -309,7 +309,7 @@
       "method": "Full",
       "ship": "2026-08-06",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -324,7 +324,7 @@
       "method": "Full",
       "ship": "2026-09-11",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -339,7 +339,7 @@
       "method": "Full",
       "ship": "2026-09-25",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -354,7 +354,7 @@
       "method": "Full",
       "ship": "2026-09-25",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -369,7 +369,7 @@
       "method": "Full",
       "ship": "2026-09-28",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -384,7 +384,7 @@
       "method": "Full",
       "ship": "2026-10-01",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -399,7 +399,7 @@
       "method": "Full",
       "ship": "2026-10-01",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -414,7 +414,7 @@
       "method": "Full",
       "ship": "2026-10-06",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -429,7 +429,7 @@
       "method": "Full",
       "ship": "2026-10-15",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     }
   ]
