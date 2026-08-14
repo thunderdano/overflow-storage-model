@@ -119,10 +119,15 @@
     <div class="fld"><label>Name to save as</label><input id="scenName" type="text" placeholder="e.g. Jonny — aggressive" style="width:180px"></div>
     <button class="btn primary" id="scenSave">Save</button>
     <button class="btn" id="scenDefault">Set as my default</button>
+    <button class="btn" id="scenClearDef">Clear my default</button>
     <button class="btn" id="scenDelete">Delete</button>
+    <button class="btn" id="scenReset">Reset</button>
+    <div style="flex-basis:100%;height:0"></div>
     <button class="btn" id="scenExport">Export file</button>
     <label class="btn" for="scenImportInput" style="margin:0;cursor:pointer;">Import file<input id="scenImportInput" type="file" accept="application/json,.json" style="display:none"></label>
-    <button class="btn" id="scenReset">Reset</button>
+    <div class="fld"><label>GitHub token (to publish)</label><input id="ghToken" type="password" placeholder="fine-grained PAT" style="width:190px" autocomplete="off"></div>
+    <button class="btn" id="ghSaveTok">Save token</button>
+    <button class="btn primary" id="scenPublish">Publish as team default</button>
     <div style="flex:1;min-width:220px"><span class="hint" id="scenMsg"></span></div>
   </div>
 
@@ -324,8 +329,7 @@ function lsScenAll(){ if(!STORAGE_OK) return {}; try{return JSON.parse(localStor
 function lsScenSave(o){ if(!STORAGE_OK) return; try{localStorage.setItem(LS_SCEN,JSON.stringify(o));}catch(e){} }
 function baselineRows(){ return DATA.map(p=>({s:p.s,c:p.c||'NSO',t:p.t||'',d:p.d,i:p.i,p:p.p,n:p.n,g:p.g||'',method:defaultMethod(p),ship:defaultShip(p),mob:1,on:true,custom:false})); }
 const PRESETS={
-  'Baseline — ship at completion': ()=> DATA.map(p=>({s:p.s,c:p.c||'NSO',t:p.t||'',d:p.d,i:p.i,p:p.p,n:p.n,g:p.g||'',method:'Full',ship:(p.d||today()),mob:1,on:true,custom:false})),
-  'Early-ship reality — ship now': ()=> baselineRows()
+  'Early ship (space-relief)': ()=> baselineRows()
 };
 function serialize(){ const g={}; GLOBAL_IDS.forEach(id=>g[id]=$(id).value); return {v:1, savedAt:$('today').value, globals:g, state:JSON.parse(JSON.stringify(state))}; }
 function applyScenario(o){ if(!o) return; if(o.globals) GLOBAL_IDS.forEach(id=>{ if(o.globals[id]!=null) $(id).value=o.globals[id]; }); if(o.state) state=o.state.map(r=>({...r})); render(); }
@@ -367,6 +371,29 @@ $('scenImportInput').addEventListener('change',e=>{
   rd.onload=()=>{ try{ applyScenario(JSON.parse(rd.result)); refreshScenSelect(''); msg('Imported “'+f.name+'”.'); }catch(err){ msg('That file could not be read as a scenario.'); } };
   rd.readAsText(f); e.target.value='';
 });
+
+/* ---- Publish to GitHub (team default) ---- */
+const REPO='thunderdano/overflow-storage-model';
+const LS_TOK='teg_overflow_ghtoken_v1';
+function ghTok(){ try{return localStorage.getItem(LS_TOK)||'';}catch(e){return '';} }
+function b64utf8(str){ const bytes=new TextEncoder().encode(str); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
+$('ghSaveTok').addEventListener('click',()=>{ const v=($('ghToken').value||'').trim(); if(!v){ msg('Paste a token first.'); return; } try{ localStorage.setItem(LS_TOK,v); $('ghToken').value=''; msg('Token saved to this browser — you can Publish now.'); }catch(e){ msg('Could not store token in this view.'); } });
+$('scenClearDef').addEventListener('click',()=>{ try{ localStorage.removeItem(LS_DEF); msg('Cleared your personal default — reload to get the team default.'); }catch(e){} });
+async function ghPublish(){
+  const tok=ghTok(); if(!tok){ msg('Add a GitHub token first (paste it, then Save token).'); return; }
+  const api='https://api.github.com/repos/'+REPO+'/contents/default-scenario.json';
+  const H={Authorization:'token '+tok, Accept:'application/vnd.github+json'};
+  msg('Publishing team default…');
+  let sha=null;
+  try{ const g=await fetch(api,{headers:H}); if(g.ok){ sha=(await g.json()).sha; } }catch(e){}
+  const body={message:'Update team default view', content:b64utf8(JSON.stringify(serialize(),null,2))}; if(sha) body.sha=sha;
+  try{
+    const r=await fetch(api,{method:'PUT',headers:H,body:JSON.stringify(body)});
+    if(r.ok){ msg('Published ✓ — everyone opens to this view within ~1 min. (Your own “Set as my default” still overrides it locally; use “Clear my default” to see the team view.)'); }
+    else { let e={}; try{e=await r.json();}catch(_){} msg('Publish failed ('+r.status+'). '+(e.message||'Token needs Contents: Read/Write on '+REPO+'.')); }
+  }catch(e){ msg('Publish failed: '+e.message); }
+}
+$('scenPublish').addEventListener('click', ghPublish);
 
 // init order: personal default (this browser) > shared repo default (default-scenario.json) > computed baseline
 async function init(){
