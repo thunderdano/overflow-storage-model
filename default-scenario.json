@@ -219,7 +219,7 @@
       "method": "Full",
       "ship": "2026-08-04",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -232,9 +232,9 @@
       "n": 1,
       "g": "Legend of the Yeti:97",
       "method": "Full",
-      "ship": "2026-08-17",
+      "ship": "2026-08-21",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -247,9 +247,9 @@
       "n": 1,
       "g": "Legend of the Yeti:96",
       "method": "Full",
-      "ship": "2026-08-18",
+      "ship": "2026-08-25",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -262,9 +262,9 @@
       "n": 1,
       "g": "Cold Rush:64",
       "method": "Full",
-      "ship": "2026-09-29",
-      "mob": 1,
-      "on": true,
+      "ship": "2026-10-02",
+      "mob": 0,
+      "on": false,
       "custom": false
     },
     {
@@ -277,9 +277,9 @@
       "n": 1,
       "g": "Cold Rush:45",
       "method": "Full",
-      "ship": "2026-10-07",
-      "mob": 1,
-      "on": true,
+      "ship": "2026-10-12",
+      "mob": 0,
+      "on": false,
       "custom": false
     },
     {
@@ -292,9 +292,9 @@
       "n": 1,
       "g": "Cold Rush:18",
       "method": "Full",
-      "ship": "2026-10-09",
-      "mob": 1,
-      "on": true,
+      "ship": "2026-10-14",
+      "mob": 0,
+      "on": false,
       "custom": false
     },
     {
