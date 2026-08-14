@@ -159,7 +159,7 @@
       "method": "Full",
       "ship": "2026-12-18",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
@@ -187,9 +187,9 @@
       "n": 6,
       "g": "",
       "method": "Full",
-      "ship": "2027-02-03",
-      "mob": 1,
-      "on": true,
+      "ship": "2027-02-10",
+      "mob": 0,
+      "on": false,
       "custom": false
     },
     {
