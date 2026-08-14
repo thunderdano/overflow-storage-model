@@ -126,10 +126,10 @@
       "p": 25,
       "n": 6,
       "g": "Legend of the Yeti:25",
-      "method": "Full",
-      "ship": "2026-11-02",
+      "method": "Partial",
+      "ship": "2026-11-10",
       "mob": 1,
-      "on": false,
+      "on": true,
       "custom": false
     },
     {
