@@ -51,7 +51,7 @@
       "p": 87,
       "n": 1,
       "g": "Ruins:87",
-      "method": "Partial",
+      "method": "Full",
       "ship": "2026-09-11",
       "mob": 1,
       "on": true,
@@ -82,7 +82,7 @@
       "n": 7,
       "g": "Cosmic Crisis:95|Ruins:93|The Heist:95|Timeliner:95|Depths:85",
       "method": "Partial",
-      "ship": "2026-08-13",
+      "ship": "2026-08-27",
       "mob": 1,
       "on": true,
       "custom": false
