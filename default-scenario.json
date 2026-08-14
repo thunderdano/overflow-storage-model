@@ -234,7 +234,7 @@
       "method": "Full",
       "ship": "2026-08-21",
       "mob": 1,
-      "on": false,
+      "on": true,
       "custom": false
     },
     {
