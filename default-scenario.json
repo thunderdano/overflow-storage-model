@@ -4,11 +4,11 @@
   "globals": {
     "siteRate": "4000",
     "mobRate": "4000",
-    "baseRate": "12",
+    "baseRate": "16",
     "nnnRate": "3.5",
     "today": "2026-08-13",
-    "horizon": "9",
-    "targetSqft": "7500",
+    "horizon": "12",
+    "targetSqft": "5000",
     "setup": "7500"
   },
   "state": [
