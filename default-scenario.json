@@ -127,9 +127,9 @@
       "n": 6,
       "g": "Legend of the Yeti:25",
       "method": "Full",
-      "ship": "2026-10-13",
+      "ship": "2026-11-02",
       "mob": 1,
-      "on": true,
+      "on": false,
       "custom": false
     },
     {
